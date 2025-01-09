@@ -41,7 +41,7 @@ services:
 
   ERProxy:
     container_name: ERProxy
-    image: docker.myhotmall.cn/library/nginx:1.24.0
+    image: docker.myhotmall.cn/library/nginx:1.26.2
     labels:
       - sh.acme.autoload.domain=githot.cc
     volumes:
