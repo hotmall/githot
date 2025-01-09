@@ -2,7 +2,7 @@ version: "3"
 
 services:
   server:
-    image: docker.io/gitea/gitea:1.22.6
+    image: docker.myhotmall.cn/gitea/gitea:1.22.6
     container_name: githot
     environment:
       - USER=git
@@ -12,34 +12,65 @@ services:
       - GITEA__database__HOST=db:5432
       - GITEA__database__NAME=githot
       - GITEA__database__USER=githot
-      - GITEA__database__PASSWD=git@1234
+      - GITEA__database__PASSWD=hot@1234
     restart: always
     networks:
       - githot
     volumes:
-      - ./data:/data
+      - ${HOT_HOME}/var/data:/data
       - /home/git/.ssh/:/data/git/.ssh
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
       - "127.0.0.1:2222:22"
     depends_on:
       - db
 
-   db:
-     image: docker.io/library/postgres:14
-     restart: always
-     environment:
-       - POSTGRES_USER=githot
-       - POSTGRES_PASSWORD=git@1234
-       - POSTGRES_DB=githot
-     networks:
-       - gitea
-     volumes:
-       - ./postgres:/var/lib/postgresql/data
+  db:
+    image: docker.myhotmall.cn/library/postgres:14
+    restart: always
+    environment:
+      - POSTGRES_USER=githot
+      - POSTGRES_PASSWORD=hot@1234
+      - POSTGRES_DB=githot
+    networks:
+      - githot
+    volumes:
+      - ${HOT_HOME}/var/db:/var/lib/postgresql/data
+
+  ERProxy:
+    container_name: ERProxy
+    image: docker.myhotmall.cn/library/nginx:1.24.0
+    labels:
+      - sh.acme.autoload.domain=githot.cc
+    volumes:
+      - ${HOT_HOME}/etc/ERProxy/nginx.conf:/etc/nginx/nginx.conf
+      - ${HOT_HOME}/etc/ERProxy/ssl:/etc/nginx/ssl
+      - ${HOT_HOME}/etc/ERProxy/html:/etc/nginx/html
+      - ${HOT_HOME}/var/log/ERProxy:/var/log/nginx
+    restart: always
+    networks:
+      - githot
+
+  acme.sh:
+    container_name: acme.sh
+    image: docker.myhotmall.cn/neilpang/acme.sh:3.0.7
+    command: daemon
+    volumes:
+      - ${HOT_HOME}/var/acme:/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DEPLOY_DOCKER_CONTAINER_LABEL=sh.acme.autoload.domain=githot.cc
+      - DEPLOY_DOCKER_CONTAINER_KEY_FILE=/etc/nginx/ssl/githot.cc/githot.cc.key
+      - DEPLOY_DOCKER_CONTAINER_CERT_FILE="/etc/nginx/ssl/githot.cc/githot.cc.cer"
+      - DEPLOY_DOCKER_CONTAINER_CA_FILE="/etc/nginx/ssl/githot.cc/ca.cer"
+      - DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE="/etc/nginx/ssl/githot.cc/fullchain.cer"
+      - DEPLOY_DOCKER_CONTAINER_RELOAD_CMD="service nginx force-reload"
+    restart: always
+    networks:
+      - githot
 
 networks:
   githot:
-    external: 
-
+    driver: bridge
